@@ -35,7 +35,7 @@ FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 # Set KasmVNC version
 ENV KASM_VNC_VERSION=1.5.0
 # Set capabilities for NVIDIA GPU
-ENV NVIDIA_DRIVER_CAPABILITIES all
+ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
 
 # Install runtime dependencies
@@ -69,7 +69,8 @@ RUN apt-get update && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     # Download and install KasmVNC
-    wget "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvncserver_ubuntu22.04_1.5.0_amd64.deb" -O kasmvnc.deb && \
+    # (FIX: Added hyphen in 'ubuntu-22.04' and used variable for version)
+    wget "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvncserver_ubuntu-22.04_${KASM_VNC_VERSION}_amd64.deb" -O kasmvnc.deb && \
     dpkg -i kasmvnc.deb && \
     rm kasmvnc.deb && \
     apt-get clean && \
@@ -101,10 +102,11 @@ RUN useradd -m -s /bin/bash -G audio,video,pulse,pulse-access,input kasm && \
     chmod 600 /home/kasm/.vnc/passwd
 
 # KasmVNC config (run as user kasm)
-ENV HOME /home/kasm
-ENV USER kasm
+# (FIX: Use KEY=VALUE format for ENV)
+ENV HOME=/home/kasm
+ENV USER=kasm
 # Set display for all services
-ENV DISPLAY :1
+ENV DISPLAY=:1
 
 # Expose ports
 # All-in-One UI (proxied by Nginx)

@@ -1,3 +1,9 @@
+// --- DEBUG: Log on startup ---
+console.log('---------------------------------');
+console.log('ViniCapture API server.js starting...');
+console.log(`[DEBUG] process.env.DISPLAY = ${process.env.DISPLAY}`);
+console.log('---------------------------------');
+
 const express = require('express');
 const cors = require('cors');
 const { spawn, exec } = require('child_process');
@@ -147,6 +153,7 @@ app.post('/api/start', (req, res) => {
     // 2. Get the active profile command
     const activeProfile = getActiveProfile();
     if (!activeProfile || !activeProfile.command) {
+        console.error('[API /api/start] No active FFmpeg profile found or command is empty.');
         return res.status(500).json({ error: 'No active FFmpeg profile found or command is empty.' });
     }
     
@@ -240,4 +247,3 @@ app.get('/', (req, res) => {
 app.listen(port, '127.0.0.1', () => {
     console.log(`ViniCapture API listening on port ${port}`);
 });
-

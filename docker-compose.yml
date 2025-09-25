@@ -1,0 +1,39 @@
+# Use version 3.8 to support the 'deploy.resources' key for GPU access
+version: "3.8"
+
+services:
+  vinicapture:
+    container_name: vinicapture
+    # Build from the Dockerfile in the current directory
+    build:
+      context: .
+      tag: vinicapture
+    ports:
+      # 8993 for the All-in-One Control Panel (maps to port 80 in container)
+      - "8993:80"
+      # 8994 for the HLS Stream (maps to port 8994 in container)
+      - "8994:8994"
+    restart: unless-stopped
+    
+    # --- NEW: Persistent Volume ---
+    # This maps the named volume 'vinicapture-data' to the /data directory
+    # inside the container. This is where profiles.json is stored.
+    volumes:
+      - vinicapture-data:/data
+    
+    # --- GPU HARDWARE ACCELERATION ---
+    # This passes the host's NVIDIA GPU into the container.
+    # Requires the NVIDIA Container Toolkit on your host.
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]
+
+# --- NEW: Top-level volumes definition ---
+# This tells Docker to create a named volume called 'vinicapture-data'
+volumes:
+  vinicapture-data:
+

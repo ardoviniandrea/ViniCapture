@@ -32,8 +32,8 @@ COPY app/ .
 # Use the smaller NVIDIA 'base' image for runtime
 FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 
-# Set KasmVNC version
-ENV KASM_VNC_VERSION=1.5.0
+# Set KasmVNC version (Upgraded to v1.6.0)
+ENV KASM_VNC_VERSION=1.6.0
 # Set capabilities for NVIDIA GPU
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
@@ -48,6 +48,8 @@ RUN apt-get update && \
     supervisor \
     ca-certificates \
     wget \
+    gpg-agent \
+    software-properties-common \
     # KasmVNC dependencies
     libjpeg-turbo8 \
     libwebp7 \
@@ -62,19 +64,25 @@ RUN apt-get update && \
     libxcb-render-util0 \
     libpulse0 \
     libgbm1 \
-    # Chromium dependencies
-    chromium-browser \
     && \
+    # Add Google Chrome repository (to avoid snap)
+    curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
+    echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
+    apt-get update && \
+    # Install Google Chrome
+    apt-get install -y --no-install-recommends google-chrome-stable && \
     # Re-install Node.js runtime
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
-    # Download and install KasmVNC
-    # (FIX: Added hyphen in 'ubuntu-22.04' and used variable for version)
+    # Download and install KasmVNC (Upgraded to v1.6.0)
     wget "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvncserver_ubuntu-22.04_${KASM_VNC_VERSION}_amd64.deb" -O kasmvnc.deb && \
     dpkg -i kasmvnc.deb && \
     rm kasmvnc.deb && \
+    # Clean up
+    apt-get remove -y --purge software-properties-common gpg-agent && \
+    apt-get autoremove -y && \
     apt-get clean && \
-    rm -rf /var/lib/apt/lists/*
+    rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/google-chrome.list
     
 # Create and set the working directory for the Node.js app
 WORKDIR /usr/src/app
@@ -102,7 +110,6 @@ RUN useradd -m -s /bin/bash -G audio,video,pulse,pulse-access,input kasm && \
     chmod 600 /home/kasm/.vnc/passwd
 
 # KasmVNC config (run as user kasm)
-# (FIX: Use KEY=VALUE format for ENV)
 ENV HOME=/home/kasm
 ENV USER=kasm
 # Set display for all services

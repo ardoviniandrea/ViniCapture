@@ -32,8 +32,7 @@ COPY app/ .
 # Use the smaller NVIDIA 'base' image for runtime
 FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 
-# === FIX 1 ===
-# Updated KasmVNC version to latest stable release (1.7.0)
+# Set KasmVNC version to latest stable release (1.7.0)
 ENV KASM_VNC_VERSION=1.7.0
 # Set capabilities for NVIDIA GPU
 ENV NVIDIA_DRIVER_CAPABILITIES=all
@@ -76,11 +75,11 @@ RUN apt-get update && \
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     #
-    # === FIX 2 ===
-    # Replaced wget with curl -fL, which is more robust for CI pipelines.
-    # Also using the correct 'ubuntu22.04' filename.
+    # === FINAL FIX ===
+    # The filename pattern was wrong.
+    # Corrected to: kasmvncserver_${KASM_VNC_VERSION}_ubuntu22.04_amd64.deb
     #
-    curl -fL "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvncserver_ubuntu22.04_${KASM_VNC_VERSION}_amd64.deb" -o kasmvnc.deb && \
+    curl -fL "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvncserver_${KASM_VNC_VERSION}_ubuntu22.04_amd64.deb" -o kasmvnc.deb && \
     dpkg -i kasmvnc.deb && \
     rm kasmvnc.deb && \
     # Clean up

@@ -221,10 +221,13 @@ app.post('/api/start', (req, res) => {
         cleanupStreamFiles();
     });
 
+    // --- THIS IS THE CORRECTED LINE ---
+    // The previous version had a syntax error.
     ffmpegProcess.on('error', (err) => {
-        console.error('[FFmpeg] Failed to start process (on 'error' event):', err.message);
+        console.error('[ffmpeg] Failed to start process:', err.message);
         ffmpegProcess = null;
     });
+    // --- END OF FIX ---
 
     console.log('[API] /api/start: Start command issued. Sending 200.');
     res.json({ message: 'Capture started' });
@@ -290,3 +293,4 @@ app.get('/', (req, res) => {
 app.listen(port, '127.0.0.1', () => {
     console.log(`ViniCapture API listening on http://127.0.0.1:${port}`);
 });
+

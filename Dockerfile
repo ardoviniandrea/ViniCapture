@@ -37,7 +37,7 @@ ENV KASM_VNC_VERSION=1.3.4
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Install core dependencies and VNC dependencies
+# 1. Install core dependencies and VNC dependencies [cite: 3, 4]
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -63,53 +63,56 @@ RUN apt-get update && \
     libpulse0 \
     libgbm1
 
-# 2. Install Google Chrome
+# 2. Install Google Chrome [cite: 5]
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
     echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-chrome.gpg] http://dl.google.com/linux/chrome/deb/ stable main" > /etc/apt/sources.list.d/google-chrome.list && \
     apt-get update && \
     apt-get install -y --no-install-recommends google-chrome-stable
 
-# 3. Install Node.js runtime
+# 3. Install Node.js runtime [cite: 5]
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs
 
-# 4. Download and install KasmVNC, and fix any missing dependencies
+# 4. Download and install KasmVNC, and fix any missing dependencies [cite: 6]
 RUN curl -fL "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvncserver_jammy_${KASM_VNC_VERSION}_amd64.deb" -o kasmvnc.deb && \
     dpkg -i kasmvnc.deb || apt-get -f install -y && \
     rm kasmvnc.deb
 
-# 5. Final cleanup
+# 5. Final cleanup [cite: 6, 7]
 RUN apt-get remove -y --purge software-properties-common gpg-agent && \
     apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/google-chrome.list
 
-# Create and set the working directory for the Node.js app
+# Create and set the working directory for the Node.js app [cite: 7]
 WORKDIR /usr/src/app
 
-# Copy the application files and node_modules from the 'builder' stage
+# Copy the application files and node_modules from the 'builder' stage [cite: 7]
 COPY --from=builder /usr/src/app .
 
-# Copy configs
+# Copy configs [cite: 8]
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Create directories for HLS, logs, and persistent data
-# /data will be mounted as a volume
+# Create directories for HLS, logs, and persistent data [cite: 8]
 RUN mkdir -p /var/www/hls && \
     mkdir -p /data && \
     mkdir -p /var/log/nginx && \
     chown -R 1000:1000 /var/www/hls /data
     
-# KasmVNC setup: Create or modify the 'kasm' user, then set up VNC
+# KasmVNC setup, Step 1: Ensure user 'kasm' exists and has the correct groups 
+# This is in its own layer to guarantee the user is created before the next step.
 RUN if id -u kasm >/dev/null 2>&1; then \
         echo "User kasm already exists, modifying."; \
         usermod -a -G audio,video,pulse,pulse-access,input kasm; \
     else \
         echo "User kasm does not exist, creating."; \
         useradd -m -s /bin/bash -G audio,video,pulse,pulse-access,input kasm; \
-    fi && \
-    echo "kasm:kasm" | chpasswd && \
+    fi
+
+# KasmVNC setup, Step 2: Set password and create VNC directory for the 'kasm' user [cite: 9, 10]
+# This runs in a new layer where the 'kasm' user is guaranteed to exist.
+RUN echo "kasm:kasm" | chpasswd && \
     mkdir -p /home/kasm/.vnc && \
     echo "kasm" | vncpasswd -f > /home/kasm/.vnc/passwd && \
     chown -R kasm:kasm /home/kasm && \
@@ -122,12 +125,9 @@ ENV USER=kasm
 ENV DISPLAY=:1
 
 # Expose ports
-# All-in-One UI (proxied by Nginx)
 EXPOSE 80
-# HLS Stream (served by Nginx)
 EXPOSE 8994
-# KasmVNC port (proxied by Nginx)
 EXPOSE 6901
 
-# Start supervisord as the main command (as root)
+# Start supervisord as the main command (as root) [cite: 10]
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]

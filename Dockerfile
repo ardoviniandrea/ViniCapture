@@ -1,5 +1,5 @@
 # Stage 1: The Builder (For Node.js dependencies)
-# Use the NVIDIA devel image as a base to match the runtime
+# Use the NVIDIA devel image to get build tools
 FROM nvidia/cuda:12.2.2-devel-ubuntu22.04 AS builder
 
 ENV DEBIAN_FRONTEND=noninteractive
@@ -12,14 +12,13 @@ RUN apt-get update && \
     gnupg \
     python3 \
     && \
-    # Install Node.js 20.x
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
 
 # Set working directory and copy package files
-WORKDIR /app
+WORKDIR /usr/src/app
 COPY app/package*.json ./
 
 # Install all dependencies for the app
@@ -30,14 +29,16 @@ COPY app/ .
 
 # ---
 # Stage 2: The Final Runtime Image
-# Use the NVIDIA base image for the runtime
+# Use the smaller NVIDIA 'base' image for runtime
 FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 
-ENV DEBIAN_FRONTEND=noninteractive
+# Set KasmVNC version
+ENV KASM_VNC_VERSION=1.5.0
+# Set capabilities for NVIDIA GPU
 ENV NVIDIA_DRIVER_CAPABILITIES all
-# Set path for KasmVNC
-ENV KASM_VNC_PATH /usr/bin
+ENV DEBIAN_FRONTEND=noninteractive
 
+# Install runtime dependencies
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -46,49 +47,73 @@ RUN apt-get update && \
     nginx \
     supervisor \
     ca-certificates \
-    pulseaudio \
-    chromium-browser \
-    # KasmVNC Dependencies
+    wget \
+    # KasmVNC dependencies
     libjpeg-turbo8 \
-    libxtst6 \
-    libxrandr2 \
-    libxi6 \
-    libdbus-glib-1-2 \
-    libxfixes3 \
-    libnss3 \
+    libwebp7 \
+    libxfont2 \
+    x11-utils \
+    xauth \
+    libxkbcommon-x11-0 \
+    libxcb-xinerama0 \
+    libxcb-shape0 \
+    libxcb-icccm4 \
+    libxcb-keysyms1 \
+    libxcb-render-util0 \
+    libpulse0 \
+    libgbm1 \
+    # Chromium dependencies
+    chromium-browser \
     && \
-    # Install Node.js 20.x runtime
+    # Re-install Node.js runtime
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
+    # Download and install KasmVNC
+    wget "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvncserver_ubuntu22.04_1.5.0_amd64.deb" -O kasmvnc.deb && \
+    dpkg -i kasmvnc.deb && \
+    rm kasmvnc.deb && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/*
-
-# Download and install KasmVNC
-# Using v1.5.0 for Ubuntu 22.04 (jammy)
-RUN KASM_VNC_VERSION=1.5.0 && \
-    KASM_VNC_URL="https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvnc_${KASM_VNC_VERSION}_jammy_amd64.deb" && \
-    curl -Lo kasmvnc.deb $KASM_VNC_URL && \
-    apt-get install -y ./kasmvnc.deb && \
-    rm -f kasmvnc.deb
-
-# Set working directory
-WORKDIR /app
+    
+# Create and set the working directory for the Node.js app
+WORKDIR /usr/src/app
 
 # Copy the application files and node_modules from the 'builder' stage
-COPY --from=builder /app .
+COPY --from=builder /usr/src/app .
 
-# Copy Nginx and Supervisor configs
+# Copy configs
 COPY nginx.conf /etc/nginx/nginx.conf
-COPY supervisord.conf /etc/supervisor/supervisord.conf
+COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 
-# Create directories
-RUN mkdir -p /var/www/hls /var/log/supervisor /run/pulseaudio
-RUN chmod 777 /run/pulseaudio
+# Create directories for HLS, logs, and persistent data
+# /data will be mounted as a volume
+RUN mkdir -p /var/www/hls && \
+    mkdir -p /data && \
+    mkdir -p /var/log/nginx && \
+    chown -R 1000:1000 /var/www/hls /data
+    
+# KasmVNC setup: Create a non-root user 'kasm'
+RUN useradd -m -s /bin/bash -G audio,video,pulse,pulse-access,input kasm && \
+    echo "kasm:kasm" | chpasswd && \
+    mkdir -p /home/kasm/.vnc && \
+    echo "kasm" | vncpasswd -f > /home/kasm/.vnc/passwd && \
+    chown -R kasm:kasm /home/kasm && \
+    chmod 600 /home/kasm/.vnc/passwd
+
+# KasmVNC config (run as user kasm)
+ENV HOME /home/kasm
+ENV USER kasm
+# Set display for all services
+ENV DISPLAY :1
 
 # Expose ports
-EXPOSE 80   # All-in-One UI
-EXPOSE 8994 # HLS Stream
+# All-in-One UI (proxied by Nginx)
+EXPOSE 80
+# HLS Stream (served by Nginx)
+EXPOSE 8994
+# KasmVNC port (proxied by Nginx)
+EXPOSE 6901
 
-# Start supervisor
-CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/supervisord.conf"]
+# Start supervisord as the main command (as root)
+CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
 

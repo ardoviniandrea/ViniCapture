@@ -127,13 +127,18 @@ RUN echo "kasm:kasm" | chpasswd && \
     chown -R kasm:kasm /home/kasm && \
     chmod 600 /home/kasm/.vnc/passwd
 
+# --- NEW FIX: ---
+# 1. Set correct permissions for /tmp, which X servers rely on.
+# 2. Pre-create the .Xauthority file and set its owner to kasm.
+# This should resolve the "xauth: file ... does not exist" error.
+RUN chmod 1777 /tmp && \
+    touch /home/kasm/.Xauthority && \
+    chown kasm:kasm /home/kasm/.Xauthority
+
 # KasmVNC config (run as user kasm)
 ENV HOME=/home/kasm
 ENV USER=kasm
-# --- FIX ---
 # Removed global ENV DISPLAY=:1
-# This variable was conflicting with kasmvncserver's startup.
-# It will be set specifically for the node_api program in supervisord.conf
 
 # Expose ports
 EXPOSE 80
@@ -142,3 +147,4 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+

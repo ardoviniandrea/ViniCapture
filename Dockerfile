@@ -61,7 +61,8 @@ RUN apt-get update && \
     libxcb-keysyms1 \
     libxcb-render-util0 \
     libpulse0 \
-    libgbm1
+    libgbm1 \
+    x11vnc
 
 # 2. Install Google Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -122,7 +123,7 @@ RUN if id -u kasm >/dev/null 2>&1; then \
 # This runs in a new layer where the 'kasm' user is guaranteed to exist.
 RUN echo "kasm:kasm" | chpasswd && \
     mkdir -p /home/kasm/.vnc && \
-    echo -e "kasm\nkasm" | vncpasswd /home/kasm/.vnc/passwd && \
+    x11vnc -storepasswd kasm /home/kasm/.vnc/passwd && \
     chown -R kasm:kasm /home/kasm && \
     chmod 600 /home/kasm/.vnc/passwd
 

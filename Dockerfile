@@ -101,8 +101,14 @@ RUN mkdir -p /var/www/hls && \
     mkdir -p /var/log/nginx && \
     chown -R 1000:1000 /var/www/hls /data
     
-# KasmVNC setup: Modify the existing 'kasm' user and set up VNC
-RUN usermod -a -G audio,video,pulse,pulse-access,input kasm && \
+# KasmVNC setup: Create or modify the 'kasm' user, then set up VNC
+RUN if id -u kasm >/dev/null 2>&1; then \
+        echo "User kasm already exists, modifying."; \
+        usermod -a -G audio,video,pulse,pulse-access,input kasm; \
+    else \
+        echo "User kasm does not exist, creating."; \
+        useradd -m -s /bin/bash -G audio,video,pulse,pulse-access,input kasm; \
+    fi && \
     echo "kasm:kasm" | chpasswd && \
     mkdir -p /home/kasm/.vnc && \
     echo "kasm" | vncpasswd -f > /home/kasm/.vnc/passwd && \

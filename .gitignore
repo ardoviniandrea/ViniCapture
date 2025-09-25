@@ -1,0 +1,16 @@
+Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+Persistent data directory
+(Assuming you don't want to commit the saved profiles.json)
+/data/
+
+macOS
+.DS_Store
+
+Logs
+*.log
+logs/

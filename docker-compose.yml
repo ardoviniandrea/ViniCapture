@@ -5,9 +5,7 @@ services:
   vinicapture:
     container_name: vinicapture
     # Build from the Dockerfile in the current directory
-    build:
-      context: .
-      tag: vinicapture
+    image: ghcr.io/ardoviniandrea/vinicapture:latest
     ports:
       # 8993 for the All-in-One Control Panel (maps to port 80 in container)
       - "8993:80"

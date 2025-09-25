@@ -74,8 +74,12 @@ RUN apt-get update && \
     # Re-install Node.js runtime
     curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs && \
-    # Download and install KasmVNC (Upgraded to v1.6.0)
-    wget "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvncserver_ubuntu-22.04_${KASM_VNC_VERSION}_amd64.deb" -O kasmvnc.deb && \
+    #
+    # === FIX ===
+    # The filename was wrong. It's 'ubuntu22.04' not 'ubuntu-22.04'.
+    # This corrected wget command will fix the 404 error.
+    #
+    wget "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvncserver_ubuntu22.04_${KASM_VNC_VERSION}_amd64.deb" -O kasmvnc.deb && \
     dpkg -i kasmvnc.deb && \
     rm kasmvnc.deb && \
     # Clean up
@@ -125,4 +129,3 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-

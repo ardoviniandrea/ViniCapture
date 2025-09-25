@@ -130,8 +130,10 @@ RUN echo "kasm:kasm" | chpasswd && \
 # KasmVNC config (run as user kasm)
 ENV HOME=/home/kasm
 ENV USER=kasm
-# Set display for all services
-ENV DISPLAY=:1
+# --- FIX ---
+# Removed global ENV DISPLAY=:1
+# This variable was conflicting with kasmvncserver's startup.
+# It will be set specifically for the node_api program in supervisord.conf
 
 # Expose ports
 EXPOSE 80

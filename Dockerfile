@@ -38,6 +38,7 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 1. Install core dependencies and VNC dependencies
+# --- FIX: Added 'ssl-cert' to provide the missing snakeoil key file ---
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -62,7 +63,8 @@ RUN apt-get update && \
     libxcb-render-util0 \
     libpulse0 \
     libgbm1 \
-    x11vnc
+    x11vnc \
+    ssl-cert
 
 # 2. Install Google Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -147,4 +149,3 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-

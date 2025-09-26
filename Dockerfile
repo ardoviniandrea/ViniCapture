@@ -113,12 +113,13 @@ RUN for group in audio video pulse pulse-access input; do \
 
 # KasmVNC setup, Step 2: Ensure user 'kasm' exists and has the correct groups 
 # This is in its own layer to guarantee the user is created before the next step.
+# --- FINAL FIX: Add 'ssl-cert' group to 'kasm' user to grant key read access ---
 RUN if id -u kasm >/dev/null 2>&1; then \
         echo "User kasm already exists, modifying."; \
-        usermod -a -G audio,video,pulse,pulse-access,input kasm; \
+        usermod -a -G audio,video,pulse,pulse-access,input,ssl-cert kasm; \
     else \
         echo "User kasm does not exist, creating."; \
-        useradd -m -s /bin/bash -G audio,video,pulse,pulse-access,input kasm; \
+        useradd -m -s /bin/bash -G audio,video,pulse,pulse-access,input,ssl-cert kasm; \
     fi
 
 # KasmVNC setup, Step 3: Set password and create VNC directory for the 'kasm' user
@@ -149,3 +150,4 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+

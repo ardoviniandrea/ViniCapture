@@ -38,7 +38,8 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 1. Install core dependencies and VNC dependencies
-# --- FIX: Added 'ssl-cert' to provide the missing snakeoil key file ---
+# --- RECONCILED FIX 1: ---
+# Add 'ssl-cert' (for the missing key) and 'lxde' (the desktop environment)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -64,7 +65,8 @@ RUN apt-get update && \
     libpulse0 \
     libgbm1 \
     x11vnc \
-    ssl-cert
+    ssl-cert \
+    lxde
 
 # 2. Install Google Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -113,7 +115,7 @@ RUN for group in audio video pulse pulse-access input; do \
 
 # KasmVNC setup, Step 2: Ensure user 'kasm' exists and has the correct groups 
 # This is in its own layer to guarantee the user is created before the next step.
-# --- FINAL FIX: Add 'ssl-cert' group to 'kasm' user to grant key read access ---
+# --- RECONCILED FIX 2: Add 'ssl-cert' group to 'kasm' user ---
 RUN if id -u kasm >/dev/null 2>&1; then \
         echo "User kasm already exists, modifying."; \
         usermod -a -G audio,video,pulse,pulse-access,input,ssl-cert kasm; \
@@ -123,17 +125,17 @@ RUN if id -u kasm >/dev/null 2>&1; then \
     fi
 
 # KasmVNC setup, Step 3: Set password and create VNC directory for the 'kasm' user
-# This runs in a new layer where the 'kasm' user is guaranteed to exist.
+# --- RECONCILED FIX 3: Pre-create config files to skip the setup wizard ---
 RUN echo "kasm:kasm" | chpasswd && \
     mkdir -p /home/kasm/.vnc && \
     x11vnc -storepasswd kasm /home/kasm/.vnc/passwd && \
+    echo -e "#!/bin/sh\nset -x\nexec lxsession" > /home/kasm/.vnc/xstartup && \
+    touch /home/kasm/.vnc/.de-was-selected && \
     chown -R kasm:kasm /home/kasm && \
+    chmod +x /home/kasm/.vnc/xstartup && \
     chmod 600 /home/kasm/.vnc/passwd
 
-# --- NEW FIX: ---
-# 1. Set correct permissions for /tmp, which X servers rely on.
-# 2. Pre-create the .Xauthority file and set its owner to kasm.
-# This should resolve the "xauth: file ... does not exist" error.
+# --- FIX: Set permissions for /tmp and create .Xauthority ---
 RUN chmod 1777 /tmp && \
     touch /home/kasm/.Xauthority && \
     chown kasm:kasm /home/kasm/.Xauthority

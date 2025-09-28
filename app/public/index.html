@@ -8,44 +8,23 @@
     <script src="https://cdn.tailwindcss.com"></script>
     <style>
         body { font-family: 'Inter', sans-serif; }
-        /* Custom styles for modal */
-        .modal-backdrop {
-            transition: opacity 0.2s ease-in-out;
-        }
-        .modal-backdrop.hidden {
-            opacity: 0;
-            pointer-events: none;
-        }
-        .modal-backdrop.visible {
-            opacity: 1;
-            pointer-events: auto;
-        }
-        .modal-content {
-            transition: all 0.2s ease-in-out;
-            transform: scale(0.95);
-            opacity: 0;
-        }
-        .modal-backdrop.visible .modal-content {
-            transform: scale(1);
-            opacity: 1;
-        }
-        /* Style for disabled buttons */
-        button:disabled {
-            cursor: not-allowed;
-            opacity: 0.5;
-        }
+        .modal-backdrop { transition: opacity 0.2s ease-in-out; }
+        .modal-backdrop.hidden { opacity: 0; pointer-events: none; }
+        .modal-backdrop.visible { opacity: 1; pointer-events: auto; }
+        .modal-content { transition: all 0.2s ease-in-out; transform: scale(0.95); opacity: 0; }
+        .modal-backdrop.visible .modal-content { transform: scale(1); opacity: 1; }
+        button:disabled { cursor: not-allowed; opacity: 0.5; }
     </style>
 </head>
 <body class="bg-gray-900 text-white min-h-screen p-4">
 
     <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        <!-- VNC Viewer (takes 2/3 width on large screens) -->
+        <!-- VNC Viewer -->
         <div class="lg:col-span-2 bg-gray-800 rounded-2xl shadow-2xl p-6">
             <h2 class="text-xl font-bold text-indigo-400 mb-4">Remote Browser</h2>
             <div class="aspect-video bg-black rounded-lg overflow-hidden border border-gray-700">
-                <!-- The VNC session is embedded here from our Nginx proxy -->
-                <iframe id="vnc-viewer" src="/vnc/" class="w-full h-full border-0" onload="console.log('[CLIENT] VNC iframe finished loading (this does not mean connection was successful).')" onerror="console.error('[CLIENT] VNC iframe FAILED to load.')"></iframe>
+                <iframe id="vnc-viewer" src="/vnc/" class="w-full h-full border-0"></iframe>
             </div>
              <p class="text-sm text-gray-500 mt-3">
                 Use this browser to navigate, log in, and play your source stream. 
@@ -53,52 +32,37 @@
             </p>
         </div>
 
-        <!-- Control Panel (takes 1/3 width) -->
+        <!-- Control Panel -->
         <div class="lg:col-span-1 bg-gray-800 p-8 rounded-2xl shadow-2xl flex flex-col space-y-6">
-            <!-- Logo and Title -->
             <div classs="flex flex-col items-center justify-center">
                 <img src="https://i.imgur.com/KdFI7pS.png" alt="ViniCapture Logo" class="h-16 w-16 mx-auto mb-4 rounded-lg" onerror="this.style.display='none'">
                 <h1 class="text-3xl font-bold text-center text-indigo-400">ViniCapture</h1>
             </div>
             
-            <!-- Status Indicator -->
             <div class="p-4 rounded-lg flex items-center justify-center border" id="status-indicator">
                 <div class="h-4 w-4 rounded-full bg-red-500 mr-3" id="status-dot"></div>
                 <span class="font-medium text-lg" id="status-text">Capture is OFFLINE</span>
             </div>
 
-            <!-- Action Buttons -->
             <div class="flex space-x-4">
-                <button id="start-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg hover:shadow-green-500/50 disabled:opacity-50" disabled>
-                    Start Capture
-                </button>
-                <button id="stop-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition duration-300 shadow-lg hover:shadow-red-500/50 disabled:opacity-50" disabled>
-                    Stop Capture
-                </button>
+                <button id="start-btn" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3 px-4 rounded-lg transition" disabled>Start Capture</button>
+                <button id="stop-btn" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-bold py-3 px-4 rounded-lg transition" disabled>Stop Capture</button>
             </div>
 
-            <!-- Shareable Link -->
             <div class="bg-gray-900 p-4 rounded-lg" id="share-link-box" style="display: none;">
-                <label class="block text-sm font-medium text-gray-400 mb-2">Shareable Stream Link (VLC, etc.)</label>
+                <label class="block text-sm font-medium text-gray-400 mb-2">Shareable Stream Link</label>
                 <div class="flex">
                     <input type="text" id="share-link" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-l-lg text-gray-200 focus:outline-none" readonly>
                     <button id="copy-btn" class="bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-2 px-4 rounded-r-lg">Copy</button>
                 </div>
             </div>
 
-            <!-- 
-              ================================================================
-              --- NEW: FFmpeg Profile Manager ---
-              ================================================================
-            -->
             <div class="bg-gray-900 p-4 rounded-lg">
                 <h3 class="text-xl font-bold text-indigo-300 mb-4">FFmpeg Profile</h3>
-                
                 <div class="mb-3">
                     <label for="profile-select" class="block text-sm font-medium text-gray-400 mb-2">Active Profile</label>
                     <select id="profile-select" class="w-full p-2 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-indigo-500 focus:outline-none"></select>
                 </div>
-                
                 <div class="flex space-x-2">
                     <button id="new-profile-btn" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-3 rounded-lg transition text-sm">New</button>
                     <button id="edit-profile-btn" class="flex-1 bg-gray-600 hover:bg-gray-700 text-white font-bold py-2 px-3 rounded-lg transition text-sm">Edit</button>
@@ -106,34 +70,38 @@
                 </div>
             </div>
 
-            <!-- Message Log -->
+            <!-- 
+              ================================================================
+              --- NEW: Debugging Section ---
+              ================================================================
+            -->
+            <div class="bg-gray-900 p-4 rounded-lg border border-yellow-500/30">
+                <h3 class="text-lg font-bold text-yellow-300 mb-3">Debugging Tools</h3>
+                <button id="debug-vnc-btn" class="w-full bg-yellow-600 hover:bg-yellow-700 text-white font-bold py-2 px-3 rounded-lg transition text-sm">Check VNC Process Status</button>
+                <p class="text-xs text-gray-500 mt-2">Checks if the VNC server process is running inside the container.</p>
+                <pre id="debug-output" class="mt-2 text-xs text-gray-400 bg-black p-2 rounded max-h-40 overflow-auto whitespace-pre-wrap break-all"></pre>
+            </div>
+
+
             <div id="message-log" class="text-center text-gray-400 text-sm h-5"></div>
         </div>
     </div>
 
-    <!-- 
-      ================================================================
-      --- NEW: Profile Editor Modal ---
-      ================================================================
-    -->
+    <!-- Profile Editor Modal -->
     <div id="profile-editor-modal" class="modal-backdrop hidden fixed inset-0 bg-black bg-opacity-70 flex items-center justify-center p-4 z-50">
         <div class="modal-content bg-gray-800 rounded-lg shadow-2xl w-full max-w-2xl">
             <form id="profile-editor-form">
                 <div class="p-6">
                     <h3 id="profile-modal-title" class="text-xl font-bold text-white mb-4">Edit Profile</h3>
                     <input type="hidden" id="profile-id">
-                    
                     <div class="space-y-4">
                         <div>
                             <label for="profile-name" class="block text-sm font-medium text-gray-400">Profile Name</label>
-                            <input type="text" id="profile-name" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white focus:ring-indigo-500 focus:border-indigo-500 outline-none" required>
+                            <input type="text" id="profile-name" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white" required>
                         </div>
                         <div>
                             <label for="profile-command" class="block text-sm font-medium text-gray-400">FFmpeg Command</label>
-                            <textarea id="profile-command" rows="8" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white font-mono text-sm focus:ring-indigo-500 focus:border-indigo-500 outline-none" placeholder="ffmpeg -f x11grab..." required></textarea>
-                            <p class="text-xs text-gray-500 mt-1">
-                                Note: The command must be a complete, valid FFmpeg command.
-                            </p>
+                            <textarea id="profile-command" rows="8" class="mt-1 block w-full bg-gray-700 border border-gray-600 rounded-md px-3 py-2 text-white font-mono text-sm" required></textarea>
                         </div>
                     </div>
                 </div>
@@ -164,14 +132,10 @@
         const shareLink = document.getElementById('share-link');
         const copyBtn = document.getElementById('copy-btn');
         const messageLog = document.getElementById('message-log');
-
-        // --- NEW Profile UI Elements ---
         const profileSelect = document.getElementById('profile-select');
         const newProfileBtn = document.getElementById('new-profile-btn');
         const editProfileBtn = document.getElementById('edit-profile-btn');
         const deleteProfileBtn = document.getElementById('delete-profile-btn');
-
-        // --- NEW Modal UI Elements ---
         const profileEditorModal = document.getElementById('profile-editor-modal');
         const profileEditorForm = document.getElementById('profile-editor-form');
         const profileModalTitle = document.getElementById('profile-modal-title');
@@ -179,10 +143,13 @@
         const profileNameInput = document.getElementById('profile-name');
         const profileCommandInput = document.getElementById('profile-command');
         const modalCancelProfileBtn = document.getElementById('modal-cancel-profile-btn');
-        const modalSaveProfileBtn = document.getElementById('modal-save-profile-btn');
+        
+        // --- NEW DEBUG UI Elements ---
+        const debugVncBtn = document.getElementById('debug-vnc-btn');
+        const debugOutput = document.getElementById('debug-output');
+        const vncIframe = document.getElementById('vnc-viewer');
 
 
-        // Set the share link dynamically. Assumes port 8994 is mapped.
         const publicStreamUrl = `http://${window.location.hostname}:8994/live.m3u8`;
         shareLink.value = publicStreamUrl;
         console.log(`[CLIENT] Public stream URL set to: ${publicStreamUrl}`);
@@ -191,53 +158,43 @@
             console.log(`[CLIENT] logMessage (Error: ${isError}): ${message}`);
             messageLog.textContent = message;
             messageLog.className = isError 
-                ? 'text-center text-red-400 mt-4 text-sm h-5' 
-                : 'text-center text-green-400 mt-4 text-sm h-5';
+                ? 'text-center text-red-400 text-sm h-5' 
+                : 'text-center text-green-400 text-sm h-5';
             setTimeout(() => { messageLog.textContent = ''; }, 3000);
         }
 
-        // --- Main Status Functions ---
+        // --- Main Functions ---
 
         function updateStatus(running) {
             console.log(`[CLIENT] updateStatus called. New status (running): ${running}`);
             currentStatus.running = running;
             if (running) {
-                statusIndicator.classList.remove('border-red-500');
-                statusIndicator.classList.add('border-green-500');
-                statusIndicator.style.background = 'rgba(34, 197, 94, 0.1)';
                 statusDot.classList.remove('bg-red-500');
                 statusDot.classList.add('bg-green-500');
                 statusText.textContent = 'Capture is LIVE';
                 shareLinkBox.style.display = 'block';
                 startBtn.disabled = true;
                 stopBtn.disabled = false;
-                // Disable profile editing while running
                 profileSelect.disabled = true;
                 newProfileBtn.disabled = true;
                 editProfileBtn.disabled = true;
                 deleteProfileBtn.disabled = true;
             } else {
-                statusIndicator.classList.add('border-red-500');
-                statusIndicator.classList.remove('border-green-500');
-                statusIndicator.style.background = 'rgba(239, 68, 68, 0.1)';
                 statusDot.classList.add('bg-red-500');
                 statusDot.classList.remove('bg-green-500');
                 statusText.textContent = 'Capture is OFFLINE';
                 shareLinkBox.style.display = 'none';
                 startBtn.disabled = false;
                 stopBtn.disabled = true;
-                // Re-enable profile editing
                 profileSelect.disabled = false;
-                updateProfileButtonStates(); // Re-enables buttons based on profile
+                updateProfileButtonStates();
             }
-            console.log('[CLIENT] updateStatus: UI updated.');
         }
 
         async function checkStatus() {
             console.log('[CLIENT] checkStatus: Fetching /api/status...');
             try {
                 const response = await fetch(`${apiUrl}/status`);
-                console.log(`[CLIENT] checkStatus: Received response status ${response.status}`);
                 const data = await response.json();
                 console.log('[CLIENT] checkStatus: Received data:', data);
                 updateStatus(data.running);
@@ -245,73 +202,46 @@
                 console.error('[CLIENT] checkStatus: Failed to fetch status:', error);
                 logMessage('Cannot connect to server', true);
                 updateStatus(false);
-                // Enable buttons on error so user can try again
                 startBtn.disabled = false;
-                stopBtn.disabled = true; // Still disabled, can't stop what's not running
+                stopBtn.disabled = true;
             }
         }
 
-        // --- NEW: Profile Management Functions ---
-
-        /**
-         * Fetches all profiles from the server and populates the UI
-         */
         async function loadProfiles() {
             console.log('[CLIENT] loadProfiles: Fetching /api/profiles...');
             try {
                 const response = await fetch(`${apiUrl}/profiles`);
-                 console.log(`[CLIENT] loadProfiles: Received response status ${response.status}`);
                 if (!response.ok) throw new Error('Failed to load profiles');
                 allProfiles = await response.json();
-                console.log(`[CLIENT] loadProfiles: Successfully loaded ${allProfiles.length} profiles.`);
                 populateProfileSelect();
             } catch (error) {
                 console.error(`[CLIENT] loadProfiles: ${error.message}`, error);
                 logMessage(error.message, true);
-                allProfiles = []; // Clear profiles on error
+                allProfiles = [];
                 populateProfileSelect();
             }
         }
 
-        /**
-         * Fills the <select> dropdown with profiles from `allProfiles`
-         */
         function populateProfileSelect() {
-            console.log('[CLIENT] populateProfileSelect: Populating dropdown...');
-            profileSelect.innerHTML = ''; // Clear existing options
+            profileSelect.innerHTML = '';
             let activeProfileId = null;
-
             if (allProfiles.length === 0) {
-                console.log('[CLIENT] populateProfileSelect: No profiles found.');
                 const option = document.createElement('option');
                 option.textContent = 'No profiles found.';
                 option.disabled = true;
                 profileSelect.appendChild(option);
             }
-
             allProfiles.forEach(profile => {
                 const option = document.createElement('option');
                 option.value = profile.id;
                 option.textContent = profile.name + (profile.isDefault ? ' (Default)' : '');
                 profileSelect.appendChild(option);
-                if (profile.active) {
-                    activeProfileId = profile.id;
-                }
+                if (profile.active) activeProfileId = profile.id;
             });
-
-            if (activeProfileId) {
-                console.log(`[CLIENT] populateProfileSelect: Setting active profile in dropdown to ID: ${activeProfileId}`);
-                profileSelect.value = activeProfileId;
-            } else {
-                 console.log('[CLIENT] populateProfileSelect: No active profile ID found in list.');
-            }
-            
+            if (activeProfileId) profileSelect.value = activeProfileId;
             updateProfileButtonStates();
         }
 
-        /**
-         * Saves the *entire* `allProfiles` array to the server
-         */
         async function saveProfiles() {
             console.log(`[CLIENT] saveProfiles: Sending ${allProfiles.length} profiles to /api/profiles...`);
             try {
@@ -320,19 +250,15 @@
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify(allProfiles)
                 });
-                console.log(`[CLIENT] saveProfiles: Received response status ${response.status}`);
                 if (!response.ok) throw new Error('Failed to save profiles');
                 logMessage('Profiles saved!', false);
-                await loadProfiles(); // Reload to ensure sync
+                await loadProfiles();
             } catch (error) {
                 console.error(`[CLIENT] saveProfiles: ${error.message}`, error);
                 logMessage(error.message, true);
             }
         }
 
-        /**
-         * Updates button states based on selected profile and run status
-         */
         function updateProfileButtonStates() {
             if (currentStatus.running) {
                 editProfileBtn.disabled = true;
@@ -340,32 +266,20 @@
                 newProfileBtn.disabled = true;
                 return;
             }
-            
             const selectedId = profileSelect.value;
             const selectedProfile = allProfiles.find(p => p.id === selectedId);
-            console.log(`[CLIENT] updateProfileButtonStates: Selected profile ID: ${selectedId}`);
-
-            newProfileBtn.disabled = false; // Can always create new
-
+            newProfileBtn.disabled = false;
             if (!selectedProfile) {
-                console.log('[CLIENT] updateProfileButtonStates: No profile selected. Disabling edit/delete.');
                 editProfileBtn.disabled = true;
                 deleteProfileBtn.disabled = true;
                 return;
             }
-            
-            // Default profiles can be edited, but not deleted
             editProfileBtn.disabled = false;
             deleteProfileBtn.disabled = selectedProfile.isDefault === true;
-            console.log(`[CLIENT] updateProfileButtonStates: Edit disabled: ${editProfileBtn.disabled}, Delete disabled: ${deleteProfileBtn.disabled}`);
         }
 
-        /**
-         * Handles changing the active profile in the dropdown
-         */
         async function handleProfileSelectChange() {
             const selectedId = profileSelect.value;
-            console.log(`[CLIENT] handleProfileSelectChange: Dropdown changed to ID: ${selectedId}.`);
             let changed = false;
             allProfiles.forEach(p => {
                 const shouldBeActive = p.id === selectedId;
@@ -374,48 +288,23 @@
                     changed = true;
                 }
             });
-
-            if (changed) {
-                console.log('[CLIENT] handleProfileSelectChange: Active profile changed. Saving profiles...');
-                await saveProfiles();
-            } else {
-                 console.log('[CLIENT] handleProfileSelectChange: No change in active profile.');
-            }
+            if (changed) await saveProfiles();
             updateProfileButtonStates();
         }
 
-        /**
-         * Opens the modal to edit or create a profile
-         */
         function openProfileModal(profile) {
-            console.log('[CLIENT] openProfileModal: Opening modal...');
             profileEditorForm.reset();
             if (profile) {
-                // Editing existing profile
-                console.log(`[CLIENT] openProfileModal: Editing profile "${profile.name}"`);
                 profileModalTitle.textContent = 'Edit Profile';
                 profileIdInput.value = profile.id;
                 profileNameInput.value = profile.name;
                 profileCommandInput.value = profile.command;
-                // Default profiles can't have their command or name edited
                 const isDefault = profile.isDefault === true;
                 profileNameInput.disabled = isDefault;
                 profileCommandInput.disabled = isDefault;
-                if(isDefault) {
-                    console.log('[CLIENT] openProfileModal: Is a default profile. Disabling name/command inputs.');
-                    profileNameInput.title = "Cannot edit name of a default profile.";
-                    profileCommandInput.title = "Cannot edit command of a default profile.";
-                } else {
-                    profileNameInput.title = "";
-                    profileCommandInput.title = "";
-                }
-
             } else {
-                // Creating new profile
-                const newId = `custom-${Date.now()}`;
-                console.log(`[CLIENT] openProfileModal: Creating new profile with ID: ${newId}`);
                 profileModalTitle.textContent = 'Add New Profile';
-                profileIdInput.value = newId; // New unique ID
+                profileIdInput.value = `custom-${Date.now()}`;
                 profileNameInput.disabled = false;
                 profileCommandInput.disabled = false;
             }
@@ -423,186 +312,129 @@
             profileEditorModal.classList.add('visible');
         }
 
-        /**
-         * Hides the profile editor modal
-         */
         function closeProfileModal() {
-            console.log('[CLIENT] closeProfileModal: Closing modal.');
             profileEditorModal.classList.add('hidden');
             profileEditorModal.classList.remove('visible');
         }
 
-        /**
-         * Handles saving the profile from the modal
-         */
         async function handleProfileSave(e) {
             e.preventDefault();
-            console.log('[CLIENT] handleProfileSave: Save button clicked.');
             const id = profileIdInput.value;
             const name = profileNameInput.value;
             const command = profileCommandInput.value;
-
-            if (!name || !command) {
-                logMessage('Name and Command are required', true);
-                return;
-            }
+            if (!name || !command) return logMessage('Name and Command are required', true);
 
             const existingProfile = allProfiles.find(p => p.id === id);
-
             if (existingProfile) {
-                // Update existing
-                console.log(`[CLIENT] handleProfileSave: Updating existing profile ID: ${id}`);
-                if (!existingProfile.isDefault) { // Safety check
+                if (!existingProfile.isDefault) {
                     existingProfile.name = name;
                     existingProfile.command = command;
-                } else {
-                    // This case shouldn't be hit if UI is disabled, but good to have
-                    logMessage('Cannot modify default profiles.', true);
                 }
             } else {
-                // Add new
-                console.log(`[CLIENT] handleProfileSave: Adding new profile with ID: ${id}`);
-                allProfiles.push({
-                    id: id,
-                    name: name,
-                    command: command,
-                    active: false,
-                    isDefault: false
-                });
+                allProfiles.push({ id, name, command, active: false, isDefault: false });
             }
-            
             closeProfileModal();
             await saveProfiles();
-            // After saving, make the new/edited profile the active one
-            console.log(`[CLIENT] handleProfileSave: Setting dropdown to new/edited profile ID: ${id}`);
             profileSelect.value = id;
             await handleProfileSelectChange();
         }
 
-        /**
-         * Handles deleting the currently selected profile
-         */
         async function handleProfileDelete() {
             const selectedId = profileSelect.value;
-            console.log(`[CLIENT] handleProfileDelete: Attempting to delete profile ID: ${selectedId}`);
             const selectedProfile = allProfiles.find(p => p.id === selectedId);
+            if (!selectedProfile || selectedProfile.isDefault) return logMessage('Cannot delete a default profile.', true);
 
-            if (!selectedProfile || selectedProfile.isDefault) {
-                logMessage('Cannot delete a default profile.', true);
-                return;
-            }
-
-            // --- NOTE: Replaced confirm() with a simple log. ---
-            // 'confirm()' blocks execution and may not work in all sandboxed environments.
-            // For debugging, we will just log and proceed.
-            // if (!confirm(`Are you sure you want to delete profile "${selectedProfile.name}"?`)) {
-            //     return;
-            // }
-            console.warn(`[CLIENT] handleProfileDelete: Proceeding to delete profile "${selectedProfile.name}". (No confirmation popup)`);
-
-
+            console.warn(`[CLIENT] Deleting profile "${selectedProfile.name}" without confirmation.`);
             allProfiles = allProfiles.filter(p => p.id !== selectedId);
-            
-            // If the deleted profile was active, make the first (default) one active
             if (selectedProfile.active && allProfiles.length > 0) {
-                console.log('[CLIENT] handleProfileDelete: Deleted profile was active. Setting first profile as new active.');
                 allProfiles[0].active = true;
             }
-
             await saveProfiles();
         }
 
-
         // --- Event Listeners ---
-
-        // Start/Stop
         startBtn.addEventListener('click', async () => {
-            console.log('[CLIENT] [EVENT] Start button clicked.');
             logMessage('Starting capture...');
             startBtn.disabled = true;
             stopBtn.disabled = true;
             try {
                 const response = await fetch(`${apiUrl}/start`, { method: 'POST' });
-                console.log(`[CLIENT] [EVENT] /api/start response status: ${response.status}`);
-                if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.error || 'Failed to start');
-                }
+                if (!response.ok) throw new Error((await response.json()).error || 'Failed to start');
                 logMessage('Capture started!', false);
                 checkStatus();
             } catch (error) {
-                console.error(`[CLIENT] [EVENT] /api/start failed: ${error.message}`, error);
                 logMessage(error.message, true);
-                checkStatus(); // Re-check status to re-enable correct button
+                checkStatus();
             }
         });
 
         stopBtn.addEventListener('click', async () => {
-            console.log('[CLIENT] [EVENT] Stop button clicked.');
             logMessage('Stopping capture...');
             startBtn.disabled = true;
             stopBtn.disabled = true;
             try {
                 const response = await fetch(`${apiUrl}/stop`, { method: 'POST' });
-                console.log(`[CLIENT] [EVENT] /api/stop response status: ${response.status}`);
-                if (!response.ok) {
-                    const data = await response.json();
-                    throw new Error(data.error || 'Failed to stop');
-                }
+                if (!response.ok) throw new Error((await response.json()).error || 'Failed to stop');
                 logMessage('Capture stopped', false);
                 checkStatus();
             } catch (error) {
-                console.error(`[CLIENT] [EVENT] /api/stop failed: ${error.message}`, error);
                 logMessage(error.message, true);
-                checkStatus(); // Re-check status
+                checkStatus();
             }
         });
 
         copyBtn.addEventListener('click', () => {
-            console.log('[CLIENT] [EVENT] Copy button clicked.');
             shareLink.select();
             try {
-                document.execCommand('copy'); // Fallback for iframe
+                document.execCommand('copy');
                 logMessage('Copied to clipboard!', false);
             } catch (err) {
-                console.error('[CLIENT] [EVENT] Failed to copy text: ', err);
                 logMessage('Failed to copy', true);
             }
         });
 
-        // Profile Listeners
         profileSelect.addEventListener('change', handleProfileSelectChange);
-        newProfileBtn.addEventListener('click', () => {
-            console.log('[CLIENT] [EVENT] New Profile button clicked.');
-            openProfileModal(null);
-        });
+        newProfileBtn.addEventListener('click', () => openProfileModal(null));
         editProfileBtn.addEventListener('click', () => {
-            console.log('[CLIENT] [EVENT] Edit Profile button clicked.');
-            const selectedId = profileSelect.value;
-            const profile = allProfiles.find(p => p.id === selectedId);
-            if (profile) {
-                openProfileModal(profile);
-            } else {
-                logMessage('Please select a profile to edit', true);
-            }
+            const profile = allProfiles.find(p => p.id === profileSelect.value);
+            if (profile) openProfileModal(profile);
         });
         deleteProfileBtn.addEventListener('click', handleProfileDelete);
-        
-        // Modal Listeners
         profileEditorForm.addEventListener('submit', handleProfileSave);
         modalCancelProfileBtn.addEventListener('click', closeProfileModal);
 
+        // --- NEW Debug Event Listener ---
+        debugVncBtn.addEventListener('click', async () => {
+            console.log('[CLIENT] [EVENT] Debug VNC button clicked.');
+            debugOutput.textContent = 'Checking...';
+            try {
+                const response = await fetch(`${apiUrl}/debug-vnc`);
+                const data = await response.json();
+                console.log('[CLIENT] [DEBUG] /api/debug-vnc response:', data);
+                // Pretty-print the JSON response in the <pre> tag
+                debugOutput.textContent = JSON.stringify(data, null, 2);
+            } catch (error) {
+                console.error('[CLIENT] [DEBUG] Failed to fetch debug info:', error);
+                debugOutput.textContent = `Error fetching debug info:\n${error.message}`;
+            }
+        });
+
+        // --- NEW Detailed iframe Load Logger ---
+        vncIframe.addEventListener('load', () => {
+            console.log('[CLIENT] VNC iframe "load" event fired. This means the HTML content of the frame has loaded, but does NOT guarantee a successful VNC connection. Check for subsequent WebSocket or JS errors in the console.');
+        });
+         vncIframe.addEventListener('error', () => {
+            console.error('[CLIENT] VNC iframe "error" event fired. The iframe src could not be loaded.');
+        });
 
         // --- Initial Load ---
         document.addEventListener('DOMContentLoaded', () => {
-            console.log('[CLIENT] [INIT] DOMContentLoaded event fired. Starting initial load.');
+            console.log('[CLIENT] [INIT] DOMContentLoaded. Starting initial load.');
             checkStatus();
             loadProfiles();
-            console.log('[CLIENT] [INIT] Initial status check and profile load triggered.');
         });
-        setInterval(checkStatus, 5000); // Keep checking status
+        setInterval(checkStatus, 5000);
         console.log('[CLIENT] [INIT] Periodic status check (5s) enabled.');
-
     </script>
 </body>
 </html>

@@ -47,12 +47,9 @@ function cleanupStreamFiles() {
 }
 
 // ================================================================
-// --- NEW: FFmpeg Profile Management ---
+// --- FFmpeg Profile Management ---
 // ================================================================
 
-/**
- * Returns the default list of profiles if none exist.
- */
 function getDefaultProfiles() {
     console.log('[DEBUG] [getDefaultProfiles] Generating default profiles in memory.');
     return [
@@ -73,9 +70,6 @@ function getDefaultProfiles() {
     ];
 }
 
-/**
- * Reads all profiles from the JSON file.
- */
 function getProfiles() {
     console.log(`[DEBUG] [getProfiles] Checking for profiles file at: ${PROFILES_PATH}`);
     if (!fs.existsSync(PROFILES_PATH)) {
@@ -102,10 +96,6 @@ function getProfiles() {
     }
 }
 
-/**
- * Saves the entire profiles object to the JSON file.
- * @param {object} profiles - The complete profiles object to save.
- */
 function saveProfiles(profiles) {
     console.log(`[DEBUG] [saveProfiles] Attempting to save ${profiles.length} profiles to ${PROFILES_PATH}`);
     try {
@@ -118,20 +108,17 @@ function saveProfiles(profiles) {
     }
 }
 
-/**
- * Gets the currently active profile.
- */
 function getActiveProfile() {
     console.log('[DEBUG] [getActiveProfile] Getting all profiles to find active one...');
     const profiles = getProfiles();
     let activeProfile = profiles.find(p => p.active);
     if (!activeProfile) {
         console.warn('[DEBUG] [getActiveProfile] No active profile found. Falling back to first profile.');
-        activeProfile = profiles[0]; // Fallback to first profile
+        activeProfile = profiles[0];
         if (activeProfile) {
             console.log(`[DEBUG] [getActiveProfile] Setting profile "${activeProfile.name}" as active and resaving.`);
             activeProfile.active = true;
-            saveProfiles(profiles); // Save the fallback state
+            saveProfiles(profiles);
         }
     }
     
@@ -139,58 +126,40 @@ function getActiveProfile() {
         console.log(`[DEBUG] [getActiveProfile] Found active profile: "${activeProfile.name}"`);
     } else {
          console.error('[ERROR] [getActiveProfile] No profiles found at all. Falling back to in-memory default.');
-        activeProfile = getDefaultProfiles()[0]; // Ultimate fallback
+        activeProfile = getDefaultProfiles()[0];
     }
     return activeProfile;
 }
 
 // ================================================================
-// --- API Endpoints (Updated) ---
+// --- API Endpoints ---
 // ================================================================
 
-/**
- * API: Get current capture status
- */
 app.get('/api/status', (req, res) => {
     const isRunning = (ffmpegProcess !== null);
     console.log(`[API] GET /api/status. Running: ${isRunning}`);
-    res.json({
-        running: isRunning
-    });
+    res.json({ running: isRunning });
 });
 
-/**
- * API: Start the FFmpeg capture
- * (NOW USES THE ACTIVE PROFILE)
- */
 app.post('/api/start', (req, res) => {
     console.log('[API] POST /api/start received.');
     if (ffmpegProcess) {
-        console.warn('[API] /api/start: Capture is already running. Sending 400.');
         return res.status(400).json({ error: 'Capture is already running' });
     }
     
-    // 1. Clean up old files
-    console.log('[API] /api/start: Cleaning up old stream files...');
     cleanupStreamFiles();
 
-    // 2. Get the active profile command
     const activeProfile = getActiveProfile();
     if (!activeProfile || !activeProfile.command) {
-        console.error('[API] /api/start: No active FFmpeg profile found or command is empty. Sending 500.');
         return res.status(500).json({ error: 'No active FFmpeg profile found or command is empty.' });
     }
     
     const commandString = activeProfile.command;
-
-    // 3. Split command string into arguments, respecting quotes
-    const args = (commandString.match(/(?:[^\s"]+|"[^"]*")+/g) || [])
-                 .map(arg => arg.replace(/^"|"$/g, '')); // Remove surrounding quotes
+    const args = (commandString.match(/(?:[^\s"]+|"[^"]*")+/g) || []).map(arg => arg.replace(/^"|"$/g, ''));
 
     console.log(`[FFmpeg] Starting process with profile: ${activeProfile.name}`);
     console.log(`[FFmpeg] Full Command: ffmpeg ${args.join(' ')}`);
 
-    // 4. Spawn the process
     try {
         ffmpegProcess = spawn('ffmpeg', args);
     } catch (spawnError) {
@@ -199,14 +168,8 @@ app.post('/api/start', (req, res) => {
         return res.status(500).json({ error: `Failed to spawn ffmpeg: ${spawnError.message}`});
     }
 
-
-    ffmpegProcess.stdout.on('data', (data) => {
-        // console.log(`ffmpeg stdout: ${data}`); // Usually too noisy
-    });
-
     ffmpegProcess.stderr.on('data', (data) => {
         const stderrStr = data.toString();
-        // Filter out verbose frame/size logs
         if (!stderrStr.startsWith('frame=') && !stderrStr.startsWith('size=')) {
              console.error(`[ffmpeg stderr]: ${stderrStr.trim()}`);
         }
@@ -215,82 +178,90 @@ app.post('/api/start', (req, res) => {
     ffmpegProcess.on('close', (code) => {
         console.log(`[FFmpeg] process exited with code ${code}`);
         ffmpegProcess = null;
-        if (code !== 0 && code !== 255) { // 255 is SIGKILL (from /stop)
+        if (code !== 0 && code !== 255) {
             console.error('[FFmpeg] Process exited unexpectedly. Cleaning up.');
         }
         cleanupStreamFiles();
     });
-
-    // --- THIS IS THE CORRECTED LINE ---
-    // The previous version had a syntax error.
+    
     ffmpegProcess.on('error', (err) => {
         console.error('[ffmpeg] Failed to start process:', err.message);
         ffmpegProcess = null;
     });
-    // --- END OF FIX ---
 
-    console.log('[API] /api/start: Start command issued. Sending 200.');
     res.json({ message: 'Capture started' });
 });
 
-/**
- * API: Stop the FFmpeg capture
- */
 app.post('/api/stop', (req, res) => {
     console.log('[API] POST /api/stop received.');
     if (ffmpegProcess) {
-        console.log('[API] /api/stop: Ffmpeg process found. Sending SIGKILL...');
         ffmpegProcess.kill('SIGKILL');
         ffmpegProcess = null;
-        console.log('[API] /api/stop: Process killed. Sending 200.');
         res.json({ message: 'Capture stopped' });
     } else {
-        console.warn('[API] /api/stop: Capture is not running. Sending 400.');
         res.status(400).json({ error: 'Capture is not running' });
     }
-    // Clean up files after a short delay to ensure process is dead
     setTimeout(cleanupStreamFiles, 1000);
 });
 
-/**
- * NEW API: Get all profiles
- */
 app.get('/api/profiles', (req, res) => {
-    console.log('[API] GET /api/profiles received. Fetching profiles...');
     const profiles = getProfiles();
-    console.log(`[API] /api/profiles: Sending ${profiles.length} profiles.`);
     res.json(profiles);
 });
 
-/**
- * NEW API: Save all profiles
- */
 app.post('/api/profiles', (req, res) => {
-    console.log('[API] POST /api/profiles received. Saving profiles...');
     const profiles = req.body;
     if (!Array.isArray(profiles)) {
-        console.error('[API] /api/profiles: Invalid profiles data. Expected an array. Sending 400.');
         return res.status(400).json({ error: 'Invalid profiles data. Expected an array.' });
     }
     
     if (saveProfiles(profiles)) {
-        console.log('[API] /api/profiles: Profiles saved. Sending 200.');
         res.json({ message: 'Profiles saved successfully' });
     } else {
-        console.error('[API] /api/profiles: Failed to save profiles to disk. Sending 500.');
         res.status(500).json({ error: 'Failed to save profiles to disk.' });
     }
 });
 
+// --- NEW DEBUGGING ENDPOINT ---
+/**
+ * Checks for running VNC processes inside the container.
+ */
+app.get('/api/debug-vnc', (req, res) => {
+    console.log('[API] GET /api/debug-vnc received. Checking VNC process status...');
+    // Use `ps` to find processes related to kasmvnc or its underlying Xvnc server
+    exec("ps aux | grep -E 'kasmvnc|Xvnc' | grep -v grep", (error, stdout, stderr) => {
+        if (error) {
+            // This case is hit when grep finds no matches, which means the process isn't running.
+            console.log('[API] /api/debug-vnc: No VNC processes found.');
+            res.status(200).json({
+                message: "No running VNC processes found.",
+                running: false,
+                stdout: stdout,
+                stderr: stderr,
+                errorCode: error.code
+            });
+            return;
+        }
+        if (stderr) {
+             console.warn('[API] /api/debug-vnc: Stderr from process check:', stderr);
+        }
+        console.log('[API] /api/debug-vnc: Found running VNC process(es).');
+        res.status(200).json({
+            message: "VNC process(es) appear to be running.",
+            running: true,
+            // Split the output into an array of strings for easier reading
+            processes: stdout.split('\n').filter(line => line.length > 0)
+        });
+    });
+});
+// --- END OF NEW ENDPOINT ---
 
-// Serve the index.html for the root route
+
 app.get('/', (req, res) => {
     console.log(`[API] GET /: Serving index.html`);
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Nginx proxies to this port
 app.listen(port, '127.0.0.1', () => {
     console.log(`ViniCapture API listening on http://127.0.0.1:${port}`);
 });
-

@@ -38,8 +38,6 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
 
 # 1. Install core dependencies and VNC dependencies
-# --- RECONCILED FIX 1: ---
-# Add 'ssl-cert' (for the missing key) and 'lxde' (the desktop environment)
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -89,6 +87,14 @@ RUN apt-get remove -y --purge software-properties-common gpg-agent && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/google-chrome.list
 
+# --- DEFINITIVE FIX: Create a config file to override SSL ---
+# The kasmvncserver script automatically loads configs from /etc/kasmvnc/.
+# We create a file here to explicitly disable the require_ssl setting, which
+# is on by default and was overriding our command-line flags. This forces
+# the VNC server to start without SSL, allowing Nginx to proxy correctly.
+RUN mkdir -p /etc/kasmvnc && \
+    echo -e "network:\n  ssl:\n    require_ssl: false" > /etc/kasmvnc/kasmvnc.yaml
+
 # Create and set the working directory for the Node.js app
 WORKDIR /usr/src/app
 
@@ -106,7 +112,6 @@ RUN mkdir -p /var/www/hls && \
     chown -R 1000:1000 /var/www/hls /data
     
 # KasmVNC setup, Step 1: Create required user groups
-# These groups may not exist in the minimal base image.
 RUN for group in audio video pulse pulse-access input; do \
         if ! getent group $group >/dev/null; then \
             groupadd --system $group; \
@@ -114,8 +119,6 @@ RUN for group in audio video pulse pulse-access input; do \
     done
 
 # KasmVNC setup, Step 2: Ensure user 'kasm' exists and has the correct groups 
-# This is in its own layer to guarantee the user is created before the next step.
-# --- RECONCILED FIX 2: Add 'ssl-cert' group to 'kasm' user ---
 RUN if id -u kasm >/dev/null 2>&1; then \
         echo "User kasm already exists, modifying."; \
         usermod -a -G audio,video,pulse,pulse-access,input,ssl-cert kasm; \
@@ -125,7 +128,6 @@ RUN if id -u kasm >/dev/null 2>&1; then \
     fi
 
 # KasmVNC setup, Step 3: Set password and create VNC directory for the 'kasm' user
-# --- RECONCILED FIX 3: Pre-create config files to skip the setup wizard ---
 RUN echo "kasm:kasm" | chpasswd && \
     mkdir -p /home/kasm/.vnc && \
     x11vnc -storepasswd kasm /home/kasm/.vnc/passwd && \
@@ -135,7 +137,7 @@ RUN echo "kasm:kasm" | chpasswd && \
     chmod +x /home/kasm/.vnc/xstartup && \
     chmod 600 /home/kasm/.vnc/passwd
 
-# --- FIX: Set permissions for /tmp and create .Xauthority ---
+# Set permissions for /tmp and create .Xauthority
 RUN chmod 1777 /tmp && \
     touch /home/kasm/.Xauthority && \
     chown kasm:kasm /home/kasm/.Xauthority
@@ -143,7 +145,6 @@ RUN chmod 1777 /tmp && \
 # KasmVNC config (run as user kasm)
 ENV HOME=/home/kasm
 ENV USER=kasm
-# Removed global ENV DISPLAY=:1
 
 # Expose ports
 EXPOSE 80
@@ -152,4 +153,3 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-

@@ -1,0 +1,22 @@
+# This file makes it easier to run the ViniCapture container with the correct settings.
+version: '3.8'
+
+services:
+  vinicapture:
+    build: .
+    container_name: vinicapture
+    restart: unless-stopped
+    ports:
+      - "5900:5900" # VNC Port
+      - "8081:8080" # HLS Stream Port
+    environment:
+      # -- Set your desired VNC password and screen resolution here --
+      - VNC_PASSWORD=password
+      - SCREEN_RESOLUTION=1280x720
+    deploy:
+      resources:
+        reservations:
+          devices:
+            - driver: nvidia
+              count: 1
+              capabilities: [gpu]

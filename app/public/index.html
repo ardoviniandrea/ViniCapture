@@ -24,11 +24,12 @@
         <div class="lg:col-span-2 bg-gray-800 rounded-2xl shadow-2xl p-6">
             <h2 class="text-xl font-bold text-indigo-400 mb-4">Remote Browser</h2>
             <div class="aspect-video bg-black rounded-lg overflow-hidden border border-gray-700">
-                <iframe id="vnc-viewer" src="/vnc/" class="w-full h-full border-0"></iframe>
+                <!-- NEW: Updated the iframe src to point to the noVNC client and its WebSocket path -->
+                <iframe id="vnc-viewer" src="/vnc/index.html?path=websockify" class="w-full h-full border-0"></iframe>
             </div>
              <p class="text-sm text-gray-500 mt-3">
                 Use this browser to navigate, log in, and play your source stream. 
-                KasmVNC controls (like fullscreen) are on the side-tab.
+                noVNC controls (like fullscreen) are on the side-tab.
             </p>
         </div>
 

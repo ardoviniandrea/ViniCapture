@@ -13,9 +13,9 @@ ENV STREAM_URL="http://localhost:8080/stream/index.m3u8"
 # Install dependencies: system tools, desktop environment, Chrome, FFmpeg, Nginx, and Supervisor
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # System tools & Supervisor
-    wget gnupg software-properties-common supervisor curl \
+    wget gnupg software-properties-common supervisor curl procps \
     # Virtual Desktop (X server, window manager, VNC)
-    xvfb fluxbox tigervnc-standalone-server x11vnc xterm \
+    xvfb fluxbox tigervnc-standalone-server tigervnc-common x11vnc xterm \
     # Nginx web server
     nginx \
     # FFmpeg for screen capture and encoding
@@ -35,9 +35,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY config/supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 COPY config/nginx.conf /etc/nginx/sites-available/default
 COPY config/stream.sh /usr/local/bin/stream.sh
+COPY config/start-vnc.sh /usr/local/bin/start-vnc.sh
 
-# Make the stream script executable
-RUN chmod +x /usr/local/bin/stream.sh
+# Make the scripts executable
+RUN chmod +x /usr/local/bin/stream.sh && \
+    chmod +x /usr/local/bin/start-vnc.sh
 
 # Create directory for HLS stream files and set permissions
 RUN mkdir -p /var/www/html/stream && \
@@ -49,3 +51,4 @@ EXPOSE 5900
 
 # The main command to start Supervisor, which manages all other services
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+

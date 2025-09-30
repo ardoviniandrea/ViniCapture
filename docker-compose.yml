@@ -13,15 +13,15 @@ services:
       - "8994:8994"
     restart: unless-stopped
     
-    # --- NEW: Persistent Volume ---
-    # This maps the named volume 'vinicapture-data' to the /data directory
-    # inside the container. This is where profiles.json is stored.
+    # --- FIX: Increase shared memory size for Chrome stability ---
+    # This prevents the common 'SIGTRAP' error by giving Chrome more
+    # memory for inter-process communication.
+    shm_size: '1gb'
+
     volumes:
       - vinicapture-data:/data
     
     # --- GPU HARDWARE ACCELERATION ---
-    # This passes the host's NVIDIA GPU into the container.
-    # Requires the NVIDIA Container Toolkit on your host.
     deploy:
       resources:
         reservations:
@@ -30,8 +30,5 @@ services:
               count: 1
               capabilities: [gpu]
 
-# --- NEW: Top-level volumes definition ---
-# This tells Docker to create a named volume called 'vinicapture-data'
 volumes:
   vinicapture-data:
-

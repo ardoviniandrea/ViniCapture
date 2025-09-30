@@ -108,13 +108,17 @@ RUN for group in audio video pulse pulse-access input; do \
         fi; \
     done
 
-# Create user, set password, and configure VNC with the NEW robust xstartup script
+# --- MODIFIED SECTION ---
+# Copy Openbox config into a temporary location first
+COPY openbox_config/ /tmp/openbox_config/
+
+# Create user, set password, configure VNC, and copy in the Openbox config
 RUN groupadd --system --gid 1000 desktopuser && \
     useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input desktopuser && \
     echo "desktopuser:desktopuser" | chpasswd && \
     mkdir -p /home/desktopuser/.vnc && \
     echo "desktopuser" | /usr/bin/vncpasswd -f > /home/desktopuser/.vnc/passwd && \
-    # --- NEW xstartup script ---
+    # --- xstartup script ---
     echo "#!/bin/sh\n\
 unset SESSION_MANAGER\n\
 unset DBUS_SESSION_BUS_ADDRESS\n\
@@ -122,7 +126,11 @@ xset s off -dpms\n\
 tint2 &\n\
 pcmanfm --desktop &\n\
 exec /usr/bin/dbus-launch --exit-with-session openbox-session" > /home/desktopuser/.vnc/xstartup && \
-    # --- End new script ---
+    # --- Add Openbox config for a right-click menu ---
+    mkdir -p /home/desktopuser/.config/openbox && \
+    cp -r /tmp/openbox_config/* /home/desktopuser/.config/openbox/ && \
+    rm -rf /tmp/openbox_config && \
+    # --- Set final ownership and permissions ---
     chown -R desktopuser:desktopuser /home/desktopuser && \
     chmod 0600 /home/desktopuser/.vnc/passwd && \
     chmod 755 /home/desktopuser/.vnc/xstartup

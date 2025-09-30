@@ -33,11 +33,13 @@ COPY app/ .
 FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 
 # Set environment variables
-ENV KASM_VNC_VERSION=1.3.4
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
+# NEW: Set noVNC version to use
+ENV NOVNC_VERSION=1.4.0
 
 # 1. Install core dependencies and VNC dependencies
+# NEW: Replaced KasmVNC dependencies with TigerVNC, websockify, and supporting tools.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -47,24 +49,13 @@ RUN apt-get update && \
     supervisor \
     ca-certificates \
     wget \
-    gpg-agent \
-    software-properties-common \
-    libjpeg-turbo8 \
-    libwebp7 \
-    libxfont2 \
-    x11-utils \
-    xauth \
-    libxkbcommon-x11-0 \
-    libxcb-xinerama0 \
-    libxcb-shape0 \
-    libxcb-icccm4 \
-    libxcb-keysyms1 \
-    libxcb-render-util0 \
+    tar \
+    lxde \
+    tigervnc-standalone-server \
+    tigervnc-common \
+    websockify \
     libpulse0 \
-    libgbm1 \
-    x11vnc \
-    ssl-cert \
-    lxde
+    libgbm1
 
 # 2. Install Google Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -76,14 +67,16 @@ RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - && \
     apt-get install -y --no-install-recommends nodejs
 
-# 4. Download and install KasmVNC, and fix any missing dependencies
-RUN curl -fL "https://github.com/kasmtech/KasmVNC/releases/download/v${KASM_VNC_VERSION}/kasmvncserver_jammy_${KASM_VNC_VERSION}_amd64.deb" -o kasmvnc.deb && \
-    dpkg -i kasmvnc.deb || apt-get -f install -y && \
-    rm kasmvnc.deb
+# 4. Download and install noVNC (the web client)
+RUN mkdir -p /usr/share/novnc && \
+    curl -fL "https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz" -o novnc.tar.gz && \
+    tar -xzf novnc.tar.gz --strip-components=1 -C /usr/share/novnc && \
+    rm novnc.tar.gz && \
+    # NEW: Create a default index.html for easier proxying
+    ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
 # 5. Final cleanup
-RUN apt-get remove -y --purge software-properties-common gpg-agent && \
-    apt-get autoremove -y && \
+RUN apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/google-chrome.list
 
@@ -93,16 +86,9 @@ WORKDIR /usr/src/app
 # Copy the application files and node_modules from the 'builder' stage
 COPY --from=builder /usr/src/app .
 
-# --- FINAL FIX ---
-# Create the YAML override file that we PROVED works in our local test.
-# This file will be loaded last to force SSL off.
-RUN echo -e "network:\n  ssl:\n    require_ssl: false" > /tmp/no-ssl.yaml && \
-    chmod 644 /tmp/no-ssl.yaml
-
 # Copy configs
 COPY nginx.conf /etc/nginx/nginx.conf
 COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
-
 
 # Create directories for HLS, logs, and persistent data
 RUN mkdir -p /var/www/hls && \
@@ -110,40 +96,29 @@ RUN mkdir -p /var/www/hls && \
     mkdir -p /var/log/nginx && \
     chown -R 1000:1000 /var/www/hls /data
     
-# KasmVNC setup, Step 1: Create required user groups
-RUN for group in audio video pulse pulse-access input; do \
-        if ! getent group $group >/dev/null; then \
-            groupadd --system $group; \
-        fi; \
-    done
+# NEW: Simplified user setup for TigerVNC
+# Create user 'kasm' with necessary groups
+RUN groupadd --system --gid 1000 kasm && \
+    useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input kasm
 
-# KasmVNC setup, Step 2: Ensure user 'kasm' exists and has the correct groups 
-RUN if id -u kasm >/dev/null 2>&1; then \
-        echo "User kasm already exists, modifying."; \
-        usermod -a -G audio,video,pulse,pulse-access,input,ssl-cert kasm; \
-    else \
-        echo "User kasm does not exist, creating."; \
-        useradd -m -s /bin/bash -G audio,video,pulse,pulse-access,input,ssl-cert kasm; \
-    fi
-
-# KasmVNC setup, Step 3: Set password and create VNC directory for the 'kasm' user
+# NEW: Set password and VNC configuration for the 'kasm' user
 RUN echo "kasm:kasm" | chpasswd && \
     mkdir -p /home/kasm/.vnc && \
-    x11vnc -storepasswd kasm /home/kasm/.vnc/passwd && \
-    echo -e "#!/bin/sh\nset -x\nexec lxsession" > /home/kasm/.vnc/xstartup && \
-    touch /home/kasm/.vnc/.de-was-selected && \
+    # NEW: Use vncpasswd to set the VNC-specific password
+    echo "kasm" | vncpasswd -f > /home/kasm/.vnc/passwd && \
+    # NEW: Create the xstartup script for the LXDE desktop environment
+    echo -e '#!/bin/sh\n[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup\n[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources\n/usr/bin/lxsession -s LXDE &' > /home/kasm/.vnc/xstartup && \
     chown -R kasm:kasm /home/kasm && \
-    chmod +x /home/kasm/.vnc/xstartup && \
-    chmod 600 /home/kasm/.vnc/passwd
+    chmod 0600 /home/kasm/.vnc/passwd && \
+    chmod 755 /home/kasm/.vnc/xstartup
 
-# Set permissions for /tmp and create .Xauthority
-RUN chmod 1777 /tmp && \
-    touch /home/kasm/.Xauthority && \
-    chown kasm:kasm /home/kasm/.Xauthority
+# Fix permissions for /tmp
+RUN chmod 1777 /tmp
 
-# KasmVNC config (run as user kasm)
+# Environment variables for VNC
 ENV HOME=/home/kasm
 ENV USER=kasm
+ENV DISPLAY=:1
 
 # Expose ports
 EXPOSE 80
@@ -152,4 +127,3 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-

@@ -102,7 +102,7 @@ RUN for group in audio video pulse pulse-access input; do \
         fi; \
     done
 
-# Create user, set password, and configure VNC in a single layer
+# Create user, set password, and configure VNC in a single layer 
 RUN groupadd --system --gid 1000 desktopuser && \
     useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input desktopuser && \
     echo "desktopuser:desktopuser" | chpasswd && \

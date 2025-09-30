@@ -37,7 +37,7 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NOVNC_VERSION=1.4.0
 
-# 1. Install core dependencies and a NEW minimal desktop environment
+# 1. Install core dependencies, including PulseAudio for sound
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -60,7 +60,8 @@ RUN apt-get update && \
     openbox \
     tint2 \
     pcmanfm \
-    xterm
+    xterm \
+    pulseaudio # <-- FIX: Added PulseAudio server
 
 # 2. Install Google Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -108,7 +109,6 @@ RUN for group in audio video pulse pulse-access input; do \
         fi; \
     done
 
-# --- MODIFIED SECTION ---
 # Copy Openbox config into a temporary location first
 COPY openbox_config/ /tmp/openbox_config/
 
@@ -120,6 +120,8 @@ RUN groupadd --system --gid 1000 desktopuser && \
     echo "desktopuser" | /usr/bin/vncpasswd -f > /home/desktopuser/.vnc/passwd && \
     # --- xstartup script ---
     echo "#!/bin/sh\n\
+# --- FIX: Start PulseAudio for the user session ---\n\
+pulseaudio --start --log-target=syslog\n\
 unset SESSION_MANAGER\n\
 unset DBUS_SESSION_BUS_ADDRESS\n\
 xset s off -dpms\n\
@@ -150,3 +152,4 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+

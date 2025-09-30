@@ -107,7 +107,7 @@ RUN groupadd --system --gid 1000 desktopuser && \
     useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input desktopuser && \
     echo "desktopuser:desktopuser" | chpasswd && \
     mkdir -p /home/desktopuser/.vnc && \
-    echo "desktopuser" | vncpasswd -f > /home/desktopuser/.vnc/passwd && \
+    echo "desktopuser" | /usr/bin/vncpasswd -f > /home/desktopuser/.vnc/passwd && \
     echo -e '#!/bin/sh\n[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup\n[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources\n/usr/bin/lxsession -s LXDE &' > /home/desktopuser/.vnc/xstartup && \
     chown -R desktopuser:desktopuser /home/desktopuser && \
     chmod 0600 /home/desktopuser/.vnc/passwd && \

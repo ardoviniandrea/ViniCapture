@@ -90,6 +90,9 @@ RUN apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/google-chrome.list
 
+# --- NEW: Add root user to the audio group for ALSA device access ---
+RUN usermod -aG audio root
+
 # Create and set the working directory for the Node.js app
 WORKDIR /usr/src/app
 
@@ -117,7 +120,7 @@ RUN for group in audio video pulse pulse-access input; do \
 # Copy Openbox config into a temporary location first
 COPY openbox_config/ /tmp/openbox_config/
 
-# --- NEW: Create PulseAudio configuration to use the ALSA loopback device ---
+# Create PulseAudio configuration to use the ALSA loopback device
 RUN mkdir -p /etc/pulse && \
     echo "load-module module-alsa-sink device=hw:0,0,0" >> /etc/pulse/default.pa
 
@@ -129,7 +132,7 @@ RUN groupadd --system --gid 1000 desktopuser && \
     echo "desktopuser" | /usr/bin/vncpasswd -f > /home/desktopuser/.vnc/passwd && \
     # --- xstartup script ---
     echo "#!/bin/sh\n\
-# --- FIX: Start PulseAudio for the user session ---\n\
+# --- Start PulseAudio for the user session ---\n\
 pulseaudio --start --log-target=syslog\n\
 unset SESSION_MANAGER\n\
 unset DBUS_SESSION_BUS_ADDRESS\n\

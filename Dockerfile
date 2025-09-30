@@ -104,13 +104,17 @@ RUN for group in audio video pulse pulse-access input; do \
     done
 
 # Create user, set password, and configure VNC in a single layer 
-# The vncpasswd command is part of tigervnc-standalone-server, which is already installed.
 RUN groupadd --system --gid 1000 desktopuser && \
     useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input desktopuser && \
     echo "desktopuser:desktopuser" | chpasswd && \
     mkdir -p /home/desktopuser/.vnc && \
     echo "desktopuser" | /usr/bin/vncpasswd -f > /home/desktopuser/.vnc/passwd && \
-    echo -e '#!/bin/sh\n[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup\n[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources\n/usr/bin/lxsession -s LXDE &' > /home/desktopuser/.vnc/xstartup && \
+    { \
+        echo '#!/bin/sh'; \
+        echo 'unset SESSION_MANAGER'; \
+        echo 'unset DBUS_SESSION_BUS_ADDRESS'; \
+        echo '/usr/bin/lxsession -s LXDE &'; \
+    } > /home/desktopuser/.vnc/xstartup && \
     chown -R desktopuser:desktopuser /home/desktopuser && \
     chmod 0600 /home/desktopuser/.vnc/passwd && \
     chmod 755 /home/desktopuser/.vnc/xstartup

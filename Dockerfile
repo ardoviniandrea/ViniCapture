@@ -54,7 +54,8 @@ RUN apt-get update && \
     websockify \
     libpulse0 \
     libgbm1 \
-    passwd
+    passwd \
+    x11-utils
 
 # 2. Install Google Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -94,33 +95,30 @@ RUN mkdir -p /var/www/hls && \
     mkdir -p /var/log/nginx && \
     chown -R 1000:1000 /var/www/hls /data
     
-# NEW: FIX - Ensure required user groups exist before creating the user.
+# FIX - Ensure required user groups exist before creating the user.
 RUN for group in audio video pulse pulse-access input; do \
         if ! getent group $group >/dev/null; then \
             groupadd --system $group; \
         fi; \
     done
 
-# Simplified user setup for TigerVNC
-# Create user 'kasm' with necessary groups
-RUN groupadd --system --gid 1000 kasm && \
-    useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input kasm
-
-# Set password and VNC configuration for the 'kasm' user
-RUN echo "kasm:kasm" | chpasswd && \
-    mkdir -p /home/kasm/.vnc && \
-    echo "kasm" | vncpasswd -f > /home/kasm/.vnc/passwd && \
-    echo -e '#!/bin/sh\n[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup\n[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources\n/usr/bin/lxsession -s LXDE &' > /home/kasm/.vnc/xstartup && \
-    chown -R kasm:kasm /home/kasm && \
-    chmod 0600 /home/kasm/.vnc/passwd && \
-    chmod 755 /home/kasm/.vnc/xstartup
+# Create user, set password, and configure VNC in a single layer
+RUN groupadd --system --gid 1000 desktopuser && \
+    useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input desktopuser && \
+    echo "desktopuser:desktopuser" | chpasswd && \
+    mkdir -p /home/desktopuser/.vnc && \
+    echo "desktopuser" | vncpasswd -f > /home/desktopuser/.vnc/passwd && \
+    echo -e '#!/bin/sh\n[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup\n[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources\n/usr/bin/lxsession -s LXDE &' > /home/desktopuser/.vnc/xstartup && \
+    chown -R desktopuser:desktopuser /home/desktopuser && \
+    chmod 0600 /home/desktopuser/.vnc/passwd && \
+    chmod 755 /home/desktopuser/.vnc/xstartup
 
 # Fix permissions for /tmp
 RUN chmod 1777 /tmp
 
 # Environment variables for VNC
-ENV HOME=/home/kasm
-ENV USER=kasm
+ENV HOME=/home/desktopuser
+ENV USER=desktopuser
 ENV DISPLAY=:1
 
 # Expose ports

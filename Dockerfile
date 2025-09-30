@@ -61,7 +61,7 @@ RUN apt-get update && \
     tint2 \
     pcmanfm \
     xterm \
-    pulseaudio # <-- FIX: Added PulseAudio server
+    pulseaudio
 
 # 2. Install Google Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -80,7 +80,13 @@ RUN mkdir -p /usr/share/novnc && \
     rm novnc.tar.gz && \
     ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# 5. Final cleanup
+# --- NEW: Step 5 ---
+# 5. Install ALSA utils and configure loopback device for audio capture
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends alsa-utils && \
+    echo "snd-aloop" >> /etc/modules
+
+# 6. Final cleanup
 RUN apt-get autoremove -y && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* /etc/apt/sources.list.d/google-chrome.list
@@ -152,4 +158,3 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-

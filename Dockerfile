@@ -53,7 +53,8 @@ RUN apt-get update && \
     tigervnc-common \
     websockify \
     libpulse0 \
-    libgbm1
+    libgbm1 \
+    passwd
 
 # 2. Install Google Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -129,3 +130,4 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+

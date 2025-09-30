@@ -37,7 +37,7 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NOVNC_VERSION=1.4.0
 
-# 1. Install core dependencies and VNC dependencies
+# 1. Install core dependencies, VNC dependencies, and DBus
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -56,7 +56,8 @@ RUN apt-get update && \
     libpulse0 \
     libgbm1 \
     passwd \
-    x11-utils
+    x11-utils \
+    dbus-x11
 
 # 2. Install Google Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -103,7 +104,7 @@ RUN for group in audio video pulse pulse-access input; do \
         fi; \
     done
 
-# Create user, set password, and configure VNC in a single layer 
+# Create user, set password, and configure VNC with a robust xstartup script
 RUN groupadd --system --gid 1000 desktopuser && \
     useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input desktopuser && \
     echo "desktopuser:desktopuser" | chpasswd && \
@@ -113,7 +114,7 @@ RUN groupadd --system --gid 1000 desktopuser && \
         echo '#!/bin/sh'; \
         echo 'unset SESSION_MANAGER'; \
         echo 'unset DBUS_SESSION_BUS_ADDRESS'; \
-        echo '/usr/bin/lxsession -s LXDE &'; \
+        echo 'exec dbus-launch --exit-with-session /usr/bin/lxsession -s LXDE'; \
     } > /home/desktopuser/.vnc/xstartup && \
     chown -R desktopuser:desktopuser /home/desktopuser && \
     chmod 0600 /home/desktopuser/.vnc/passwd && \

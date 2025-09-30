@@ -35,11 +35,9 @@ FROM nvidia/cuda:12.2.2-base-ubuntu22.04
 # Set environment variables
 ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
-# NEW: Set noVNC version to use
 ENV NOVNC_VERSION=1.4.0
 
 # 1. Install core dependencies and VNC dependencies
-# NEW: Replaced KasmVNC dependencies with TigerVNC, websockify, and supporting tools.
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -72,7 +70,6 @@ RUN mkdir -p /usr/share/novnc && \
     curl -fL "https://github.com/novnc/noVNC/archive/refs/tags/v${NOVNC_VERSION}.tar.gz" -o novnc.tar.gz && \
     tar -xzf novnc.tar.gz --strip-components=1 -C /usr/share/novnc && \
     rm novnc.tar.gz && \
-    # NEW: Create a default index.html for easier proxying
     ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
 # 5. Final cleanup
@@ -96,17 +93,22 @@ RUN mkdir -p /var/www/hls && \
     mkdir -p /var/log/nginx && \
     chown -R 1000:1000 /var/www/hls /data
     
-# NEW: Simplified user setup for TigerVNC
+# NEW: FIX - Ensure required user groups exist before creating the user.
+RUN for group in audio video pulse pulse-access input; do \
+        if ! getent group $group >/dev/null; then \
+            groupadd --system $group; \
+        fi; \
+    done
+
+# Simplified user setup for TigerVNC
 # Create user 'kasm' with necessary groups
 RUN groupadd --system --gid 1000 kasm && \
     useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input kasm
 
-# NEW: Set password and VNC configuration for the 'kasm' user
+# Set password and VNC configuration for the 'kasm' user
 RUN echo "kasm:kasm" | chpasswd && \
     mkdir -p /home/kasm/.vnc && \
-    # NEW: Use vncpasswd to set the VNC-specific password
     echo "kasm" | vncpasswd -f > /home/kasm/.vnc/passwd && \
-    # NEW: Create the xstartup script for the LXDE desktop environment
     echo -e '#!/bin/sh\n[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup\n[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources\n/usr/bin/lxsession -s LXDE &' > /home/kasm/.vnc/xstartup && \
     chown -R kasm:kasm /home/kasm && \
     chmod 0600 /home/kasm/.vnc/passwd && \

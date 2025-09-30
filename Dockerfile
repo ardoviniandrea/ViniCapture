@@ -51,6 +51,7 @@ RUN apt-get update && \
     lxde \
     tigervnc-standalone-server \
     tigervnc-common \
+    tigervnc-tools \
     websockify \
     libpulse0 \
     libgbm1 \
@@ -108,7 +109,7 @@ RUN groupadd --system --gid 1000 desktopuser && \
     useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input desktopuser && \
     echo "desktopuser:desktopuser" | chpasswd && \
     mkdir -p /home/desktopuser/.vnc && \
-    echo "desktopuser" | vncpasswd -f > /home/desktopuser/.vnc/passwd && \
+    echo "desktopuser" | /usr/bin/vncpasswd -f > /home/desktopuser/.vnc/passwd && \
     echo -e '#!/bin/sh\n[ -x /etc/vnc/xstartup ] && exec /etc/vnc/xstartup\n[ -r $HOME/.Xresources ] && xrdb $HOME/.Xresources\n/usr/bin/lxsession -s LXDE &' > /home/desktopuser/.vnc/xstartup && \
     chown -R desktopuser:desktopuser /home/desktopuser && \
     chmod 0600 /home/desktopuser/.vnc/passwd && \
@@ -129,3 +130,4 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+

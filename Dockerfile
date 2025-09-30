@@ -37,7 +37,7 @@ ENV NVIDIA_DRIVER_CAPABILITIES=all
 ENV DEBIAN_FRONTEND=noninteractive
 ENV NOVNC_VERSION=1.4.0
 
-# 1. Install core dependencies, VNC dependencies, and DBus
+# 1. Install core dependencies and a NEW minimal desktop environment
 RUN apt-get update && \
     apt-get install -y --no-install-recommends \
     curl \
@@ -48,7 +48,6 @@ RUN apt-get update && \
     ca-certificates \
     wget \
     tar \
-    lxde \
     tigervnc-standalone-server \
     tigervnc-common \
     tigervnc-tools \
@@ -57,7 +56,11 @@ RUN apt-get update && \
     libgbm1 \
     passwd \
     x11-utils \
-    dbus-x11
+    dbus-x11 \
+    openbox \
+    tint2 \
+    pcmanfm \
+    xterm
 
 # 2. Install Google Chrome
 RUN curl -fsSL https://dl.google.com/linux/linux_signing_key.pub | gpg --dearmor -o /usr/share/keyrings/google-chrome.gpg && \
@@ -95,27 +98,31 @@ COPY supervisord.conf /etc/supervisor/conf.d/supervisord.conf
 RUN mkdir -p /var/www/hls && \
     mkdir -p /data && \
     mkdir -p /var/log/nginx && \
+    mkdir -p /var/log/supervisor && \
     chown -R 1000:1000 /var/www/hls /data
     
-# FIX - Ensure required user groups exist before creating the user.
+# Ensure required user groups exist before creating the user.
 RUN for group in audio video pulse pulse-access input; do \
         if ! getent group $group >/dev/null; then \
             groupadd --system $group; \
         fi; \
     done
 
-# Create user, set password, and configure VNC with a robust xstartup script
+# Create user, set password, and configure VNC with the NEW robust xstartup script
 RUN groupadd --system --gid 1000 desktopuser && \
     useradd --system --uid 1000 --gid 1000 -m -s /bin/bash -G audio,video,pulse,pulse-access,input desktopuser && \
     echo "desktopuser:desktopuser" | chpasswd && \
     mkdir -p /home/desktopuser/.vnc && \
     echo "desktopuser" | /usr/bin/vncpasswd -f > /home/desktopuser/.vnc/passwd && \
-    { \
-        echo '#!/bin/sh'; \
-        echo 'unset SESSION_MANAGER'; \
-        echo 'unset DBUS_SESSION_BUS_ADDRESS'; \
-        echo 'exec dbus-launch --exit-with-session /usr/bin/lxsession -s LXDE'; \
-    } > /home/desktopuser/.vnc/xstartup && \
+    # --- NEW xstartup script ---
+    echo "#!/bin/sh\n\
+unset SESSION_MANAGER\n\
+unset DBUS_SESSION_BUS_ADDRESS\n\
+xset s off -dpms\n\
+tint2 &\n\
+pcmanfm --desktop &\n\
+exec /usr/bin/dbus-launch --exit-with-session openbox-session" > /home/desktopuser/.vnc/xstartup && \
+    # --- End new script ---
     chown -R desktopuser:desktopuser /home/desktopuser && \
     chmod 0600 /home/desktopuser/.vnc/passwd && \
     chmod 755 /home/desktopuser/.vnc/xstartup
@@ -135,4 +142,3 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-

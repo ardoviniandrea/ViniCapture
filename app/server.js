@@ -56,14 +56,14 @@ function getDefaultProfiles() {
         {
             "id": "default-nvenc",
             "name": "Default (NVIDIA NVENC)",
-            "command": "ffmpeg -f x11grab -video_size 1920x1080 -framerate 30 -i :1.0+0,0 -f pulse -i default -c:v h264_nvenc -preset p6 -tune hq -b:v 6M -c:a aac -b:a 192k -f hls -hls_time 4 -hls_list_size 10 -hls_flags delete_segments+discont_start+omit_endlist -hls_segment_filename /var/www/hls/segment_%03d.ts /var/www/hls/live.m3u8",
+            "command": "-f x11grab -video_size 1920x1080 -framerate 30 -i :1.0+0,0 -f pulse -i default -c:v h264_nvenc -preset p6 -tune hq -b:v 6M -c:a aac -b:a 192k -f hls -hls_time 4 -hls_list_size 10 -hls_flags delete_segments+discont_start+omit_endlist -hls_segment_filename /var/www/hls/segment_%03d.ts /var/www/hls/live.m3u8",
             "active": true,
             "isDefault": true
         },
         {
             "id": "default-cpu",
             "name": "Default (CPU x264 - ultrafast)",
-            "command": "ffmpeg -f x11grab -video_size 1920x1080 -framerate 30 -i :1.0+0,0 -f pulse -i default -c:v libx264 -preset ultrafast -tune zerolatency -b:v 6M -c:a aac -b:a 192k -f hls -hls_time 4 -hls_list_size 10 -hls_flags delete_segments+discont_start+omit_endlist -hls_segment_filename /var/www/hls/segment_%03d.ts /var/www/hls/live.m3u8",
+            "command": "-f x11grab -video_size 1920x1080 -framerate 30 -i :1.0+0,0 -f pulse -i default -c:v libx264 -preset ultrafast -tune zerolatency -b:v 6M -c:a aac -b:a 192k -f hls -hls_time 4 -hls_list_size 10 -hls_flags delete_segments+discont_start+omit_endlist -hls_segment_filename /var/www/hls/segment_%03d.ts /var/www/hls/live.m3u8",
             "active": false,
             "isDefault": true
         }

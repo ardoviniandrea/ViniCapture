@@ -80,7 +80,6 @@ RUN mkdir -p /usr/share/novnc && \
     rm novnc.tar.gz && \
     ln -s /usr/share/novnc/vnc.html /usr/share/novnc/index.html
 
-# --- NEW: Step 5 ---
 # 5. Install ALSA utils and configure loopback device for audio capture
 RUN apt-get update && \
     apt-get install -y --no-install-recommends alsa-utils && \
@@ -117,6 +116,10 @@ RUN for group in audio video pulse pulse-access input; do \
 
 # Copy Openbox config into a temporary location first
 COPY openbox_config/ /tmp/openbox_config/
+
+# --- NEW: Create PulseAudio configuration to use the ALSA loopback device ---
+RUN mkdir -p /etc/pulse && \
+    echo "load-module module-alsa-sink device=hw:0,0,0" >> /etc/pulse/default.pa
 
 # Create user, set password, configure VNC, and copy in the Openbox config
 RUN groupadd --system --gid 1000 desktopuser && \
@@ -158,3 +161,4 @@ EXPOSE 6901
 
 # Start supervisord as the main command (as root)
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+

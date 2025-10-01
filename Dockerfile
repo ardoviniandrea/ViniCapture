@@ -15,7 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     # System tools & Supervisor
     wget gnupg software-properties-common supervisor curl procps \
     # Virtual Desktop (X server, window manager, VNC)
-    xvfb fluxbox tigervnc-standalone-server tigervnc-common x11vnc xterm \
+    xvfb fluxbox tigervnc-standalone-server tigervnc-common x11vnc xterm x11-utils \
     # Nginx web server
     nginx \
     # FFmpeg for screen capture and encoding
@@ -51,4 +51,3 @@ EXPOSE 5900
 
 # The main command to start Supervisor, which manages all other services
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
-

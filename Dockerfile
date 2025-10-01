@@ -12,7 +12,6 @@ ENV STREAM_URL="http://localhost:8080/stream/index.m3u8"
 
 # --- NVIDIA Container Runtime Configuration ---
 # Expose all GPUs and enable video encoding/decoding capabilities.
-# This is the key change to fix the "Cannot load libnvidia-encode.so.1" error.
 ENV NVIDIA_VISIBLE_DEVICES all
 ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,video
 
@@ -43,15 +42,16 @@ COPY config/nginx.conf /etc/nginx/sites-available/default
 COPY config/stream.sh /usr/local/bin/stream.sh
 COPY config/start-vnc.sh /usr/local/bin/start-vnc.sh
 
-# --- New Fluxbox Startup Configuration ---
-# Create directory for fluxbox config and copy the startup script
+# --- Correct Fluxbox Startup Configuration ---
+# Create directory for fluxbox config and copy the startup script.
+# CRITICAL FIX: The destination file must be named "init" for Fluxbox to execute it automatically.
 RUN mkdir -p /root/.fluxbox
-COPY config/fluxbox-startup.sh /root/.fluxbox/startup
+COPY config/fluxbox-startup.sh /root/.fluxbox/init
 
 # Make the scripts executable
 RUN chmod +x /usr/local/bin/stream.sh && \
     chmod +x /usr/local/bin/start-vnc.sh && \
-    chmod +x /root/.fluxbox/startup
+    chmod +x /root/.fluxbox/init
 
 # --- New Log Directory ---
 # Create directory for supervisor logs

@@ -10,6 +10,12 @@ ENV SCREEN_RESOLUTION=1280x720
 ENV VNC_PASSWORD="password"
 ENV STREAM_URL="http://localhost:8080/stream/index.m3u8"
 
+# --- NVIDIA Container Runtime Configuration ---
+# Expose all GPUs and enable video encoding/decoding capabilities.
+# This is the key change to fix the "Cannot load libnvidia-encode.so.1" error.
+ENV NVIDIA_VISIBLE_DEVICES all
+ENV NVIDIA_DRIVER_CAPABILITIES compute,utility,video
+
 # Install dependencies: system tools, desktop environment, Chrome, FFmpeg, Nginx, and Supervisor
 RUN apt-get update && apt-get install -y --no-install-recommends \
     # System tools & Supervisor
@@ -61,3 +67,4 @@ EXPOSE 5900
 
 # The main command to start Supervisor, which manages all other services
 CMD ["/usr/bin/supervisord", "-c", "/etc/supervisor/conf.d/supervisord.conf"]
+

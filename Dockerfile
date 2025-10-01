@@ -37,9 +37,19 @@ COPY config/nginx.conf /etc/nginx/sites-available/default
 COPY config/stream.sh /usr/local/bin/stream.sh
 COPY config/start-vnc.sh /usr/local/bin/start-vnc.sh
 
+# --- New Fluxbox Startup Configuration ---
+# Create directory for fluxbox config and copy the startup script
+RUN mkdir -p /root/.fluxbox
+COPY config/fluxbox-startup.sh /root/.fluxbox/startup
+
 # Make the scripts executable
 RUN chmod +x /usr/local/bin/stream.sh && \
-    chmod +x /usr/local/bin/start-vnc.sh
+    chmod +x /usr/local/bin/start-vnc.sh && \
+    chmod +x /root/.fluxbox/startup
+
+# --- New Log Directory ---
+# Create directory for supervisor logs
+RUN mkdir -p /var/log/supervisor
 
 # Create directory for HLS stream files and set permissions
 RUN mkdir -p /var/www/html/stream && \
